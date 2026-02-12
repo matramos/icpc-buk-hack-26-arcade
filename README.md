@@ -1,156 +1,159 @@
-# 🎮 ICPC: Desafío Arcade
+# 🎮 ICPC: Arcade Challenge
 
-Buk es sponsor de la [ICPC](https://icpc.global/regionals/finder/TCP) y trae un Arcade.
-Pero esta vez el desafío no es usarlo: es crear el videojuego que estará disponible durante el evento.
+[![en](https://img.shields.io/badge/lang-en-red.svg)](README.md)
+[![es](https://img.shields.io/badge/lang-es-yellow.svg)](README.es.md)
 
-**Tu misión:** ¡Construye el mejor juego de arcade usando Phaser 3 (librería JS para juegos) que correrá en nuestra máquina arcade física!
+Buk is sponsoring the [ICPC](https://icpc.global/regionals/finder/TCP) and bringing an Arcade.
+But this time the challenge isn't to use it: it's to create the video game that will be available during the event.
 
----
-
-## 🏆 Premios
-
-### Primer Lugar
-- Gift Card de **$100 USD** en Apple
-- Tu juego estará disponible en la máquina arcade durante el evento
-
-### Segundo Lugar
-- Tu juego estará disponible en la máquina arcade durante el evento
+**Your mission:** Build the best arcade game using Phaser 3 (JS game library) that will run on our physical arcade machine!
 
 ---
 
-## 📋 Restricciones
+## 🏆 Prizes
 
-Tu juego debe cumplir con estas restricciones técnicas:
+### First Place
+- **$100 USD** Apple Gift Card
+- Your game will be available on the arcade machine during the event
 
-### Límite de Tamaño
-- ✅ **Máximo 50KB después de minificación** (antes de gzip)
-- El código del juego se minifica automáticamente - enfócate en escribir buen código
+### Second Place
+- Your game will be available on the arcade machine during the event
 
-### Restricciones de Código
-- ✅ **Solo JavaScript vanilla puro** - Sin `import` o `require`
-- ✅ **Sin URLs externas** - Sin `http://`, `https://`, o `//` (excepto URIs `data:` para base64)
-- ✅ **Sin llamadas de red** - Sin `fetch`, `XMLHttpRequest`, o APIs similares
-- ✅ **Ambiente sandboxed** - El juego corre en un iframe sin acceso a internet
+---
 
-### Lo Que SÍ Puedes Usar
-- ✅ **Phaser 3** (v3.87.0) - Cargado externamente vía CDN (no cuenta en el límite de tamaño)
-- ✅ **Imágenes codificadas en base64** - Usando URIs `data:`
-- ✅ **Gráficos generados proceduralmente** - Usando la API de Graphics de Phaser
-- ✅ **Tonos de audio generados** - Usando la Web Audio API de Phaser
-- ✅ **Renderizado y efectos basados en Canvas**
+## 📋 Restrictions
 
-# 🕹️ Controles
+Your game must comply with these technical restrictions:
 
-¡Tu juego correrá en un gabinete arcade real con joysticks y botones físicos!
+### Size Limit
+- ✅ **Maximum 50KB after minification** (before gzip)
+- Game code is minified automatically - focus on writing good code
 
-## Mapeo de Botones del Arcade
+### Code Restrictions
+- ✅ **Pure vanilla JavaScript only** - No `import` or `require`
+- ✅ **No external URLs** - No `http://`, `https://`, or `//` (except `data:` URIs for base64)
+- ✅ **No network calls** - No `fetch`, `XMLHttpRequest`, or similar APIs
+- ✅ **Sandboxed environment** - Game runs in an iframe without internet access
 
-El gabinete arcade envía códigos de teclas específicos cuando se presionan los botones:
+### What You CAN Use
+- ✅ **Phaser 3** (v3.87.0) - Loaded externally via CDN (doesn't count towards size limit)
+- ✅ **Base64-encoded images** - Using `data:` URIs
+- ✅ **Procedurally generated graphics** - Using Phaser's Graphics API
+- ✅ **Generated audio tones** - Using Phaser's Web Audio API
+- ✅ **Canvas-based rendering and effects**
 
-**Jugador 1:**
-- **Joystick**: `P1U`, `P1D`, `P1L`, `P1R` (Arriba, Abajo, Izquierda, Derecha)
-- **Diagonales del Joystick**: `P1DL`, `P1DR` (Abajo-Izquierda, Abajo-Derecha)
-- **Botones de Acción**: `P1A`, `P1B`, `P1C` (fila superior) / `P1X`, `P1Y`, `P1Z` (fila inferior)
+# 🕹️ Controls
+
+Your game will run on a real arcade cabinet with physical joysticks and buttons!
+
+## Arcade Button Mapping
+
+The arcade cabinet sends specific key codes when buttons are pressed:
+
+**Player 1:**
+- **Joystick**: `P1U`, `P1D`, `P1L`, `P1R` (Up, Down, Left, Right)
+- **Joystick Diagonals**: `P1DL`, `P1DR` (Down-Left, Down-Right)
+- **Action Buttons**: `P1A`, `P1B`, `P1C` (top row) / `P1X`, `P1Y`, `P1Z` (bottom row)
 - **Start**: `START1`
 
-**Jugador 2:**
+**Player 2:**
 - **Joystick**: `P2U`, `P2D`, `P2L`, `P2R`
-- **Diagonales del Joystick**: `P2DL`, `P2DR`
-- **Botones de Acción**: `P2A`, `P2B`, `P2C` / `P2X`, `P2Y`, `P2Z`
+- **Joystick Diagonals**: `P2DL`, `P2DR`
+- **Action Buttons**: `P2A`, `P2B`, `P2C` / `P2X`, `P2Y`, `P2Z`
 - **Start**: `START2`
 
-## Pruebas Locales
+## Local Testing
 
-Para pruebas locales, puedes mapear estos botones arcade a teclas del teclado. El mapeo soporta **múltiples teclas por botón arcade** (útil para alternativas como WASD + Flechas). Ve `game.js` para el template completo de mapeo `ARCADE_CONTROLS`.
+For local testing, you can map these arcade buttons to keyboard keys. The mapping supports **multiple keys per arcade button** (useful for alternatives like WASD + Arrow keys). See `game.js` for the complete `ARCADE_CONTROLS` mapping template.
 
-Por defecto:
-- Jugador 1 usa **WASD** (joystick) y **U/I/O/J/K/L** (botones de acción)
-- Jugador 2 usa **Flechas** (joystick) y **R/T/Y/F/G/H** (botones de acción)
+By default:
+- Player 1 uses **WASD** (joystick) and **U/I/O/J/K/L** (action buttons)
+- Player 2 uses **Arrow keys** (joystick) and **R/T/Y/F/G/H** (action buttons)
 
-💡 **Tip**: Mantén los controles simples - diseña para joystick + 1-2 botones de acción para la mejor experiencia arcade!
+💡 **Tip**: Keep controls simple - design for joystick + 1-2 action buttons for the best arcade experience!
 
 ---
 
-## ⭐ Criterios de Evaluación
+## ⭐ Evaluation Criteria
 
-¿Quieres saber cómo se evaluarán los juegos? Revisa los **Criterios de Evaluación** completos en:
+Want to know how games will be evaluated? Check out the complete **Evaluation Criteria** at:
 
 👉 **[https://buk-arcade-challenge.icpc.cl/criterios](https://buk-arcade-challenge.icpc.cl/criterios)**
 
-Conoce qué aspectos como la sensación arcade, rejugabilidad, entretención, claridad visual, pulido y creatividad se tomarán en cuenta al evaluar tu juego.
+Learn what aspects such as arcade feel, replayability, entertainment, visual clarity, polish and creativity will be considered when evaluating your game.
 
 ---
 
-## ⏰ Deadline y Envío
+## ⏰ Deadline and Submission
 
-**Deadline:** 25 de febrero de 2026 a las 23:59 (hora Chile)
+**Deadline:** February 25, 2026 at 11:59 PM (Chile time)
 
-### Cómo Enviar
+### How to Submit
 
-Enviar tu proyecto es fácil:
+Submitting your project is easy:
 
-1. **Guarda tus cambios** - Asegúrate de que `game.js`, `metadata.json` y `cover.png` estén listos
-   - **Importante:** Tu juego debe incluir un archivo `cover.png` personalizado que muestre tu juego
-2. **Git push** - Sube tu código a tu repositorio:
+1. **Save your changes** - Make sure `game.js`, `metadata.json` and `cover.png` are ready
+   - **Important:** Your game must include a custom `cover.png` file showcasing your game
+2. **Git push** - Upload your code to your repository:
    ```bash
    git add .
-   git commit -m "Envío final"
+   git commit -m "Final submission"
    git push
    ```
 
-¡Eso es todo! 🎉
+That's it! 🎉
 
-**Tu juego aparecerá automáticamente en:** [https://buk-arcade-challenge.icpc.cl/](https://buk-arcade-challenge.icpc.cl/)
+**Your game will automatically appear at:** [https://buk-arcade-challenge.icpc.cl/](https://buk-arcade-challenge.icpc.cl/)
 
-El sistema sincroniza automáticamente los forks del template y los publica en el sitio.
+The system automatically syncs template forks and publishes them to the site.
 
 ---
 
-## 🚀 Inicio Rápido
+## 🚀 Quick Start
 
-### 1. Instalar Dependencias
+### 1. Install Dependencies
 ```bash
 pnpm install
 ```
 
-### 2. Iniciar Servidor de Desarrollo
+### 2. Start Development Server
 ```bash
 pnpm dev
 ```
-Esto inicia un servidor en `http://localhost:3000` con verificación de restricciones en vivo.
+This starts a server at `http://localhost:3000` with live restriction checking.
 
-### 3. Construye Tu Juego
-- **Edita `game.js`** - Escribe el código de tu juego arcade
-- **Actualiza `metadata.json`** - Define el nombre y descripción de tu juego
-- **Crea `cover.png`** - Diseña una imagen de portada PNG para tu juego
-- **Observa el servidor de desarrollo** - Muestra actualizaciones en vivo del tamaño de archivo y restricciones
+### 3. Build Your Game
+- **Edit `game.js`** - Write your arcade game code
+- **Update `metadata.json`** - Define your game's name and description
+- **Create `cover.png`** - Design a PNG cover image for your game
+- **Watch the development server** - Shows live updates of file size and restrictions
 
 ---
 
-## 🤖 Vibecodea Tu Juego
+## 🤖 Vibecode Your Game
 
-¡Este desafío está diseñado para **vibecoding** - construir tu juego con asistencia de IA!
+This challenge is designed for **vibecoding** - building your game with AI assistance!
 
-### Lo Que Hemos Configurado Para Ti
+### What We've Set Up For You
 
-- **`AGENTS.md`** - Instrucciones pre-configuradas para que tu IDE (Cursor, Windsurf, etc.) entienda el desafío
-- **`docs/phaser-quick-start.md`** - Guía de referencia rápida para Phaser 3
-- **`docs/phaser-api.md`** - Documentación completa de la API de Phaser 3
+- **`AGENTS.md`** - Pre-configured instructions so your IDE (Cursor, Windsurf, etc.) understands the challenge
+- **`docs/phaser-quick-start.md`** - Quick reference guide for Phaser 3
+- **`docs/phaser-api.md`** - Complete Phaser 3 API documentation
 
-Tu agente de IA ya sabe:
-- ✅ Todas las restricciones del desafío
-- ✅ Cómo usar Phaser 3 efectivamente
-- ✅ Mejores prácticas para mantenerse bajo los 50KB
-- ✅ Qué archivos editar (solo `game.js` y `metadata.json`)
+Your AI agent already knows:
+- ✅ All challenge restrictions
+- ✅ How to use Phaser 3 effectively
+- ✅ Best practices for staying under 50KB
+- ✅ Which files to edit (only `game.js` and `metadata.json`)
 
-### Cómo Vibecodear
+### How to Vibecode
 
-¡Simplemente dile a tu asistente de IA qué juego quieres construir! Por ejemplo:
+Simply tell your AI assistant what game you want to build! For example:
 
-> "Crea un clon de Space Invaders con enemigos coloridos"
+> "Create a Space Invaders clone with colorful enemies"
 > 
-> "Construye un juego estilo flappy bird con gráficos procedurales"
+> "Build a flappy bird style game with procedural graphics"
 > 
-> "Haz un juego de breakout con power-ups"
+> "Make a breakout game with power-ups"
 
-¡Tu IA manejará la implementación, manteniendo todo dentro de las restricciones automáticamente!
+Your AI will handle the implementation, keeping everything within the restrictions automatically!
