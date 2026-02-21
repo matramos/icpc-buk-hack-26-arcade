@@ -33,6 +33,13 @@ var audioCtx = null;
 var targetItems = 2;
 var lastCollectTime = 0;
 var MAX_ITEMS = 10;
+
+// Leaderboard
+var leaderboard = [];
+var nameChars = [0, 0, 0]; // indices into ALPHA
+var namePos = 0;
+var ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
 var musicInterval = null;
 var musicStep = 0;
 var menuMusicInterval = null;
@@ -50,7 +57,11 @@ var glitchActive = false;
 var textPool = [];
 var itemTexts = [];
 
-try { highScore = parseFloat(localStorage.getItem('tq_hs')) || 0; } catch (e) { }
+try {
+  highScore = parseFloat(localStorage.getItem('tq_hs')) || 0;
+  var lbData = localStorage.getItem('tq_lb');
+  if (lbData) leaderboard = JSON.parse(lbData);
+} catch (e) { }
 
 var FONT = '"Consolas", "SF Mono", "Fira Mono", "Lucida Console", monospace';
 
@@ -98,7 +109,23 @@ function create() {
     if (state === 'menu') {
       if (k === 'P1A') startGame();
     } else if (state === 'gameover') {
-      if (k === 'P1A') { state = 'menu'; }
+      if (k === 'P1A') { state = 'nameentry'; nameChars = [0, 0, 0]; namePos = 0; }
+    } else if (state === 'nameentry') {
+      if (k === 'P1U') { nameChars[namePos] = (nameChars[namePos] + 1) % 26; clearTexts(); }
+      if (k === 'P1D') { nameChars[namePos] = (nameChars[namePos] + 25) % 26; clearTexts(); }
+      if (k === 'P1A') {
+        namePos++;
+        if (namePos >= 3) {
+          var name = ALPHA[nameChars[0]] + ALPHA[nameChars[1]] + ALPHA[nameChars[2]];
+          var sc = calcScore();
+          leaderboard.push({ name: name, score: sc });
+          leaderboard.sort(function (a, b) { return b.score - a.score; });
+          if (leaderboard.length > 5) leaderboard = leaderboard.slice(0, 5);
+          try { localStorage.setItem('tq_lb', JSON.stringify(leaderboard)); } catch (e) { }
+          state = 'menu';
+        }
+        clearTexts();
+      }
     }
     if (state === 'playing') {
       if (k === 'P1U' && dir !== 'down') nextDir = 'up';
@@ -235,6 +262,7 @@ function update(time, delta) {
   if (state === 'menu') drawMenu();
   else if (state === 'playing') { updatePlaying(delta); drawPlaying(time); }
   else if (state === 'gameover') drawReceipt();
+  else if (state === 'nameentry') drawNameEntry();
 }
 
 // --- MENU ---
@@ -244,21 +272,31 @@ function drawMenu() {
   gfx.fillRect(0, 0, 800, 600);
 
   if (textPool.length === 0) {
-    makeText(400, 80, 'THE', 28, '#00F0FF');
-    makeText(400, 115, '$100', 52, '#ffffff');
-    makeText(400, 185, 'TECH QUEUE', 30, '#00F0FF');
-    makeText(400, 260, 'COLLECT DEALS', 16, '#BDFF00');
-    makeText(400, 290, 'STAY UNDER $100', 16, '#FF0055');
-    makeText(400, 350, 'JOYSTICK TO MOVE', 13, '#888888');
-    makeText(400, 375, 'BTN1 SPEED BOOST', 13, '#888888');
-    // index 7 = press start (blink)
-    makeText(400, 440, 'PRESS START', 24, '#FFFF00');
-    // index 8 = high score
-    makeText(700, 10, highScore > 0 ? ('HI ' + highScore.toFixed(1)) : '', 14, '#FF0055');
+    makeText(400, 60, 'THE', 28, '#00F0FF');
+    makeText(400, 95, '$100', 52, '#ffffff');
+    makeText(400, 165, 'TECH QUEUE', 30, '#00F0FF');
+    makeText(400, 225, 'COLLECT DEALS', 15, '#BDFF00');
+    makeText(400, 250, 'STAY UNDER $100', 15, '#FF0055');
+
+    // Leaderboard
+    if (leaderboard.length > 0) {
+      makeText(400, 300, 'TOP SCORES', 16, '#00F0FF');
+      for (var li = 0; li < leaderboard.length; li++) {
+        var entry = leaderboard[li];
+        var ly = 325 + li * 22;
+        makeText(310, ly, (li + 1) + '.', 13, '#888888', 0);
+        makeText(335, ly, entry.name, 13, '#FFFF00', 0);
+        var scoreT = makeText(490, ly, entry.score.toFixed(1), 13, '#ffffff', 0);
+        scoreT.setOrigin(1, 0);
+      }
+    }
+
+    // Press start blink (always last in textPool)
+    makeText(400, 530, 'PRESS START', 24, '#FFFF00');
   }
-  // Blink PRESS START
+  // Blink PRESS START (last item in pool)
   var blink = Math.sin(Date.now() * 0.005) > 0;
-  textPool[7].setVisible(blink);
+  textPool[textPool.length - 1].setVisible(blink);
 }
 
 // --- PLAYING ---
@@ -571,6 +609,40 @@ function drawReceipt() {
   // Blink last text
   var blink = Math.sin(Date.now() * 0.004) > 0;
   textPool[textPool.length - 1].setVisible(blink);
+}
+
+// --- NAME ENTRY ---
+function drawNameEntry() {
+  gfx.fillStyle(0x000000, 0.9);
+  gfx.fillRect(0, 0, 800, 600);
+
+  gfx.fillStyle(0x0D0E14);
+  gfx.fillRoundedRect(200, 100, 400, 400, 8);
+  gfx.lineStyle(2, 0x00F0FF, 0.5);
+  gfx.strokeRoundedRect(200, 100, 400, 400, 8);
+
+  if (textPool.length === 0) {
+    makeText(400, 130, 'ENTER YOUR NAME', 22, '#00F0FF');
+    makeText(400, 175, 'SCORE: ' + calcScore().toFixed(1), 18, '#BDFF00');
+
+    // 3 letter slots
+    for (var ci = 0; ci < 3; ci++) {
+      var cx = 320 + ci * 70;
+      makeText(cx, 250, ALPHA[nameChars[ci]], 48, ci === namePos ? '#FFFF00' : '#ffffff');
+      // Up arrow
+      makeText(cx, 220, '^', 20, ci === namePos ? '#00F0FF' : '#444444');
+      // Down arrow
+      makeText(cx, 310, 'v', 20, ci === namePos ? '#00F0FF' : '#444444');
+    }
+
+    makeText(400, 380, 'UP/DOWN TO CHANGE', 12, '#888888');
+    makeText(400, 400, 'BTN1 TO CONFIRM', 12, '#888888');
+  }
+
+  // Underline active slot
+  var activeCx = 320 + namePos * 70;
+  gfx.fillStyle(0xFFFF00, 0.8);
+  gfx.fillRect(activeCx - 15, 300, 30, 3);
 }
 
 // --- GRID ---
