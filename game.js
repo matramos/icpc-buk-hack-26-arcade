@@ -30,6 +30,9 @@ var boosting = false, boostCooldown = 0;
 var particles = [];
 var heartbeatTimer = 0;
 var audioCtx = null;
+var targetItems = 2;
+var lastCollectTime = 0;
+var MAX_ITEMS = 10;
 var musicInterval = null;
 var musicStep = 0;
 var menuMusicInterval = null;
@@ -126,6 +129,8 @@ function startGame() {
   firstRockSpawned = false;
   glitchTimer = 0;
   glitchActive = false;
+  targetItems = 2;
+  lastCollectTime = Date.now();
   spawnItem();
   spawnItem();
   startMusic();
@@ -311,6 +316,7 @@ function updatePlaying(delta) {
       createParticles(head.x * GS + GS / 2, head.y * GS + GS / 2, COLORS[items[j].val], 12);
       items.splice(j, 1);
       ate = true;
+      lastCollectTime = Date.now(); // reset item timer
       if (budget > 100) { gameOver(); return; }
       spawnItem();
       moveDelay = Math.max(80, moveDelay - 2);
@@ -323,6 +329,12 @@ function updatePlaying(delta) {
   if (boosting && snake.length > 0) {
     var tail = snake[snake.length - 1];
     createParticles(tail.x * GS + GS / 2, tail.y * GS + GS / 2, 0x00F0FF, 3);
+  }
+
+  // Item scaling — if no items collected for 10s, add one more (max 10)
+  if (items.length < MAX_ITEMS && Date.now() - lastCollectTime >= 10000) {
+    lastCollectTime = Date.now();
+    spawnItem();
   }
 
   // Rock spawning — first rock at 20s, then every 15s (real time)
