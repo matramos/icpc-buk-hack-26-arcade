@@ -30,6 +30,8 @@ var boosting = false, boostCooldown = 0;
 var particles = [];
 var heartbeatTimer = 0;
 var audioCtx = null;
+var musicInterval = null;
+var musicStep = 0;
 
 // Text object pools
 var textPool = [];
@@ -110,6 +112,7 @@ function startGame() {
   particles = [];
   spawnItem();
   spawnItem();
+  startMusic();
 }
 
 function spawnItem() {
@@ -250,6 +253,7 @@ function updatePlaying(delta) {
 
 function gameOver() {
   state = 'gameover';
+  stopMusic();
   timeAlive = (Date.now() - startTime) / 1000;
   var sc = calcScore();
   if (sc > highScore) {
@@ -527,4 +531,98 @@ function playBoost() {
   playTone(300, 0.08, 0.1, 'sawtooth');
   setTimeout(function () { playTone(500, 0.08, 0.12, 'sawtooth'); }, 40);
   setTimeout(function () { playTone(800, 0.12, 0.1, 'sine'); }, 80);
+}
+
+// --- BACKGROUND MUSIC ENGINE ---
+// Dark minor-key arpeggiator + bass that accelerates with budget
+var BASS_NOTES = [55, 55, 65.4, 73.4, 55, 55, 82.4, 73.4]; // A1, A1, C2, D2...
+var ARP_PATTERN = [
+  [220, 261, 329], // Am chord tones
+  [220, 329, 392],
+  [261, 329, 440],
+  [329, 392, 523],
+  [261, 329, 440],
+  [220, 329, 392],
+  [220, 261, 329],
+  [196, 261, 329]  // resolve down
+];
+
+function startMusic() {
+  stopMusic();
+  musicStep = 0;
+  scheduleMusicStep();
+}
+
+function stopMusic() {
+  if (musicInterval) {
+    clearTimeout(musicInterval);
+    musicInterval = null;
+  }
+}
+
+function scheduleMusicStep() {
+  if (state !== 'playing') return;
+  var intensity = Math.min(budget / 100, 1);
+  // Tempo: 180ms at start → 90ms near $100
+  var tempo = 180 - intensity * 90;
+
+  playMusicNote();
+  musicStep++;
+
+  musicInterval = setTimeout(scheduleMusicStep, tempo);
+}
+
+function playMusicNote() {
+  try {
+    var ctx = getAudioCtx(); if (!ctx) return;
+    var intensity = Math.min(budget / 100, 1);
+    var step8 = musicStep % 8;
+    var step3 = musicStep % 3;
+
+    // Bass — low sub pulse on every other step
+    if (musicStep % 2 === 0) {
+      var bassFreq = BASS_NOTES[step8];
+      // Detune slightly as intensity rises for unease
+      bassFreq *= (1 + intensity * 0.02);
+      var bOsc = ctx.createOscillator();
+      var bGain = ctx.createGain();
+      bOsc.connect(bGain); bGain.connect(ctx.destination);
+      bOsc.frequency.value = bassFreq;
+      bOsc.type = 'triangle';
+      var bVol = 0.06 + intensity * 0.04;
+      bGain.gain.setValueAtTime(bVol, ctx.currentTime);
+      bGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      bOsc.start(ctx.currentTime);
+      bOsc.stop(ctx.currentTime + 0.2);
+    }
+
+    // Arpeggiator — cycle through chord tones
+    var arpChord = ARP_PATTERN[step8];
+    var arpFreq = arpChord[step3];
+    // Shift octave up as intensity grows
+    if (intensity > 0.6) arpFreq *= 2;
+    var aOsc = ctx.createOscillator();
+    var aGain = ctx.createGain();
+    aOsc.connect(aGain); aGain.connect(ctx.destination);
+    aOsc.frequency.value = arpFreq;
+    aOsc.type = 'square';
+    var aVol = 0.03 + intensity * 0.02;
+    aGain.gain.setValueAtTime(aVol, ctx.currentTime);
+    aGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    aOsc.start(ctx.currentTime);
+    aOsc.stop(ctx.currentTime + 0.12);
+
+    // High tension stab every 8 steps at high intensity
+    if (intensity > 0.5 && step8 === 0) {
+      var sOsc = ctx.createOscillator();
+      var sGain = ctx.createGain();
+      sOsc.connect(sGain); sGain.connect(ctx.destination);
+      sOsc.frequency.value = 660 + intensity * 200;
+      sOsc.type = 'sawtooth';
+      sGain.gain.setValueAtTime(0.04, ctx.currentTime);
+      sGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      sOsc.start(ctx.currentTime);
+      sOsc.stop(ctx.currentTime + 0.15);
+    }
+  } catch (e) { }
 }
