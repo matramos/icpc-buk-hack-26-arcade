@@ -37,7 +37,7 @@ var itemTexts = [];
 
 try { highScore = parseFloat(localStorage.getItem('tq_hs')) || 0; } catch (e) { }
 
-var FONT = '"Courier New", Courier, monospace';
+var FONT = '"Consolas", "SF Mono", "Fira Mono", "Lucida Console", monospace';
 
 function makeText(x, y, str, size, color, origin) {
   var t = scene.add.text(x, y, str, {
