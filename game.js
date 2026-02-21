@@ -32,6 +32,9 @@ var heartbeatTimer = 0;
 var audioCtx = null;
 var musicInterval = null;
 var musicStep = 0;
+var menuMusicInterval = null;
+var menuMusicStep = 0;
+var menuMusicPlaying = false;
 
 // Text object pools
 var textPool = [];
@@ -98,6 +101,7 @@ function create() {
 }
 
 function startGame() {
+  stopMenuMusic();
   state = 'playing';
   snake = [{ x: 12, y: 9 }];
   dir = 'right'; nextDir = 'right';
@@ -146,6 +150,7 @@ function update(time, delta) {
   // Clear texts when state changes
   if (state !== lastState) {
     clearTexts();
+    if (state === 'menu' && !menuMusicPlaying) startMenuMusic();
     lastState = state;
   }
 
@@ -531,6 +536,78 @@ function playBoost() {
   playTone(300, 0.08, 0.1, 'sawtooth');
   setTimeout(function () { playTone(500, 0.08, 0.12, 'sawtooth'); }, 40);
   setTimeout(function () { playTone(800, 0.12, 0.1, 'sine'); }, 80);
+}
+
+// --- MENU MUSIC ---
+// Fast, driving arpeggiator to build urgency and attract players
+var MENU_ARP = [220, 329, 440, 523, 659, 523, 440, 329]; // Am tense climb
+var MENU_BASS2 = [55, 55, 58.3, 55, 73.4, 69.3, 55, 55]; // dissonant bass movement
+
+function startMenuMusic() {
+  stopMenuMusic();
+  menuMusicStep = 0;
+  menuMusicPlaying = true;
+  scheduleMenuNote();
+}
+
+function stopMenuMusic() {
+  if (menuMusicInterval) {
+    clearTimeout(menuMusicInterval);
+    menuMusicInterval = null;
+  }
+  menuMusicPlaying = false;
+}
+
+function scheduleMenuNote() {
+  if (state !== 'menu') { menuMusicPlaying = false; return; }
+  playMenuNote();
+  menuMusicStep++;
+  menuMusicInterval = setTimeout(scheduleMenuNote, 150);
+}
+
+function playMenuNote() {
+  try {
+    var ctx = getAudioCtx(); if (!ctx) return;
+    var step8 = menuMusicStep % 8;
+    var step16 = menuMusicStep % 16;
+
+    // Aggressive pulsing bass — sawtooth
+    if (menuMusicStep % 2 === 0) {
+      var bOsc = ctx.createOscillator();
+      var bGain = ctx.createGain();
+      bOsc.connect(bGain); bGain.connect(ctx.destination);
+      bOsc.frequency.value = MENU_BASS2[step8];
+      bOsc.type = 'sawtooth';
+      bGain.gain.setValueAtTime(0.06, ctx.currentTime);
+      bGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      bOsc.start(ctx.currentTime);
+      bOsc.stop(ctx.currentTime + 0.15);
+    }
+
+    // Fast square wave arpeggios — edgy and driving
+    var aOsc = ctx.createOscillator();
+    var aGain = ctx.createGain();
+    aOsc.connect(aGain); aGain.connect(ctx.destination);
+    aOsc.frequency.value = MENU_ARP[step8];
+    aOsc.type = 'square';
+    aGain.gain.setValueAtTime(0.035, ctx.currentTime);
+    aGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    aOsc.start(ctx.currentTime);
+    aOsc.stop(ctx.currentTime + 0.1);
+
+    // Tension stab — sawtooth screech every 8 steps
+    if (step16 === 0) {
+      var sOsc = ctx.createOscillator();
+      var sGain = ctx.createGain();
+      sOsc.connect(sGain); sGain.connect(ctx.destination);
+      sOsc.frequency.value = 880;
+      sOsc.type = 'sawtooth';
+      sGain.gain.setValueAtTime(0.04, ctx.currentTime);
+      sGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      sOsc.start(ctx.currentTime);
+      sOsc.stop(ctx.currentTime + 0.12);
+    }
+  } catch (e) { }
 }
 
 // --- BACKGROUND MUSIC ENGINE ---
