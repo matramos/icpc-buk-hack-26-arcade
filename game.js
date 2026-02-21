@@ -17,6 +17,9 @@ var VALUES = [1, 2, 5, 10, 20];
 var COLORS = {};
 COLORS[1] = 0xBDFF00; COLORS[2] = 0x99DD00;
 COLORS[5] = 0xFFAA00; COLORS[10] = 0xFF5533; COLORS[20] = 0xFF0055;
+var COLOR_STR = {};
+COLOR_STR[1] = '#BDFF00'; COLOR_STR[2] = '#99DD00';
+COLOR_STR[5] = '#FFAA00'; COLOR_STR[10] = '#FF5533'; COLOR_STR[20] = '#FF0055';
 
 var scene, gfx, scanGfx, keys = {};
 var state = 'menu';
@@ -28,7 +31,35 @@ var particles = [];
 var heartbeatTimer = 0;
 var audioCtx = null;
 
+// Text object pools
+var textPool = [];
+var itemTexts = [];
+
 try { highScore = parseFloat(localStorage.getItem('tq_hs')) || 0; } catch (e) { }
+
+var FONT = '"Courier New", Courier, monospace';
+
+function makeText(x, y, str, size, color, origin) {
+  var t = scene.add.text(x, y, str, {
+    fontFamily: FONT,
+    fontSize: size + 'px',
+    color: color || '#ffffff',
+    fontStyle: 'bold'
+  });
+  if (origin !== undefined) t.setOrigin(origin);
+  else t.setOrigin(0.5, 0);
+  t.setDepth(500);
+  textPool.push(t);
+  return t;
+}
+
+function clearTexts() {
+  for (var i = 0; i < textPool.length; i++) {
+    textPool[i].destroy();
+  }
+  textPool = [];
+  itemTexts = [];
+}
 
 var config = {
   type: Phaser.AUTO,
@@ -104,8 +135,17 @@ function calcScore() {
   return Math.floor((budget / 100) * timeAlive * 10) / 10;
 }
 
+var lastState = '';
+
 function update(time, delta) {
   gfx.clear();
+
+  // Clear texts when state changes
+  if (state !== lastState) {
+    clearTexts();
+    lastState = state;
+  }
+
   if (state === 'menu') drawMenu();
   else if (state === 'playing') { updatePlaying(delta); drawPlaying(time); }
   else if (state === 'gameover') drawReceipt();
@@ -116,31 +156,27 @@ function drawMenu() {
   drawGrid();
   gfx.fillStyle(0x00F0FF, 0.15);
   gfx.fillRect(0, 0, 800, 600);
-  gfx.fillStyle(0x00F0FF);
-  drawText(gfx, 'THE', 400, 100, 3);
-  gfx.fillStyle(0xFFFFFF);
-  drawText(gfx, '$100', 400, 160, 5);
-  gfx.fillStyle(0x00F0FF);
-  drawText(gfx, 'TECH QUEUE', 400, 240, 2.5);
-  gfx.fillStyle(0xBDFF00);
-  drawText(gfx, 'COLLECT DEALS', 400, 330, 1.5);
-  gfx.fillStyle(0xFF0055);
-  drawText(gfx, 'STAY UNDER $100', 400, 370, 1.5);
-  gfx.fillStyle(0x888888);
-  drawText(gfx, 'JOYSTICK TO MOVE', 400, 440, 1.2);
-  drawText(gfx, 'BTN1 SPEED BOOST', 400, 470, 1.2);
-  gfx.fillStyle(0xFFFF00);
-  var blink = Math.sin(Date.now() * 0.005) > 0;
-  if (blink) drawText(gfx, 'PRESS START', 400, 540, 2);
-  if (highScore > 0) {
-    gfx.fillStyle(0xFF0055);
-    drawText(gfx, 'HI ' + highScore.toFixed(1), 700, 20, 1.2);
+
+  if (textPool.length === 0) {
+    makeText(400, 80, 'THE', 28, '#00F0FF');
+    makeText(400, 115, '$100', 52, '#ffffff');
+    makeText(400, 185, 'TECH QUEUE', 30, '#00F0FF');
+    makeText(400, 260, 'COLLECT DEALS', 16, '#BDFF00');
+    makeText(400, 290, 'STAY UNDER $100', 16, '#FF0055');
+    makeText(400, 350, 'JOYSTICK TO MOVE', 13, '#888888');
+    makeText(400, 375, 'BTN1 SPEED BOOST', 13, '#888888');
+    // index 7 = press start (blink)
+    makeText(400, 440, 'PRESS START', 24, '#FFFF00');
+    // index 8 = high score
+    makeText(700, 10, highScore > 0 ? ('HI ' + highScore.toFixed(1)) : '', 14, '#FF0055');
   }
+  // Blink PRESS START
+  var blink = Math.sin(Date.now() * 0.005) > 0;
+  textPool[7].setVisible(blink);
 }
 
 // --- PLAYING ---
 function updatePlaying(delta) {
-  // Boost
   if (boostCooldown > 0) boostCooldown -= delta;
   if (keys['P1A'] && boostCooldown <= 0) {
     boosting = true;
@@ -187,7 +223,6 @@ function updatePlaying(delta) {
       ate = true;
       if (budget > 100) { gameOver(); return; }
       spawnItem();
-      // Speed up slightly
       moveDelay = Math.max(80, moveDelay - 2);
       break;
     }
@@ -223,21 +258,29 @@ function gameOver() {
 function drawPlaying(time) {
   drawGrid();
 
+  // Sync item label texts
+  // Destroy old item texts
+  for (var ti = 0; ti < itemTexts.length; ti++) {
+    itemTexts[ti].destroy();
+  }
+  itemTexts = [];
+
   // Items with glow + pulse
   for (var i = 0; i < items.length; i++) {
     var it = items[i];
     it.pulse = (it.pulse || 0) + 0.05;
     var px = it.x * GS, py = it.y * GS;
     var c = COLORS[it.val];
-    var pulseS = 1 + Math.sin(it.pulse) * 0.1;
     // Glow
     gfx.fillStyle(c, 0.15);
     gfx.fillRoundedRect(px - 4, py - 4, GS + 8, GS + 8, 6);
     gfx.fillStyle(c, 0.8);
     gfx.fillRoundedRect(px + 2, py + 2, GS - 4, GS - 4, 4);
-    // Dollar text
-    gfx.fillStyle(0x000000);
-    drawText(gfx, '$' + it.val, px + GS / 2, py + 6, 1.2);
+    // Dollar label
+    var label = scene.add.text(px + GS / 2, py + GS / 2, '$' + it.val, {
+      fontFamily: FONT, fontSize: '13px', color: '#000000', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(501);
+    itemTexts.push(label);
   }
 
   // Snake body
@@ -245,15 +288,12 @@ function drawPlaying(time) {
     var seg = snake[j];
     var sx = seg.x * GS, sy = seg.y * GS;
     if (j === 0) {
-      // Head glow
       gfx.fillStyle(0x00F0FF, 0.2);
       gfx.fillRoundedRect(sx - 3, sy - 3, GS + 6, GS + 6, 8);
-      // Head
       gfx.fillStyle(0x00F0FF);
       gfx.fillRoundedRect(sx + 1, sy + 1, GS - 2, GS - 2, 6);
       gfx.lineStyle(2, 0xFFFFFF, 0.7);
       gfx.strokeRoundedRect(sx + 1, sy + 1, GS - 2, GS - 2, 6);
-      // Eyes
       var ex = dir === 'left' ? -4 : dir === 'right' ? 4 : 0;
       var ey = dir === 'up' ? -4 : dir === 'down' ? 4 : 0;
       gfx.fillStyle(0x000000);
@@ -263,7 +303,6 @@ function drawPlaying(time) {
       gfx.fillCircle(sx + 11 + ex, sy + 11 + ey, 1.5);
       gfx.fillCircle(sx + 21 + ex, sy + 11 + ey, 1.5);
     } else {
-      // Body segment color based on collected item
       var bColor = 0x00B8CC;
       if (j - 1 < collected.length) bColor = collected[j - 1].color;
       var alpha = 0.9 - (j / snake.length) * 0.3;
@@ -274,10 +313,7 @@ function drawPlaying(time) {
     }
   }
 
-  // Particles
   updateParticles();
-
-  // HUD
   drawHUD();
 }
 
@@ -299,20 +335,19 @@ function drawHUD() {
   gfx.lineStyle(1, 0x00F0FF, 0.4);
   gfx.strokeRect(20, 8, barW, 14);
 
-  // Budget text
-  gfx.fillStyle(0xFFFFFF);
-  drawText(gfx, '$' + budget, 340 + 30, 8, 1.3);
-  gfx.fillStyle(0x888888);
-  drawText(gfx, '/$100', 340 + 80, 8, 1.3);
-
-  // Time
+  // HUD text objects: create once, update each frame
+  // indices in textPool: 0=budget, 1=of100, 2=time, 3=count
+  if (textPool.length === 0) {
+    makeText(340, 5, '$0', 16, '#ffffff', 0);
+    makeText(395, 5, '/$100', 16, '#888888', 0);
+    makeText(730, 5, '0.0s', 16, '#00F0FF', 0);
+    makeText(600, 5, 'x0', 16, '#BDFF00', 0);
+  }
+  // Update values
+  textPool[0].setText('$' + budget);
   var t = ((Date.now() - startTime) / 1000).toFixed(1);
-  gfx.fillStyle(0x00F0FF);
-  drawText(gfx, t + 'S', 700, 8, 1.3);
-
-  // Items count
-  gfx.fillStyle(0xBDFF00);
-  drawText(gfx, 'x' + collected.length, 600, 8, 1.3);
+  textPool[2].setText(t + 's');
+  textPool[3].setText('x' + collected.length);
 
   // Boost indicator
   if (boosting) {
@@ -323,77 +358,73 @@ function drawHUD() {
 
 // --- RECEIPT (Game Over) ---
 function drawReceipt() {
-  // Dark overlay
   gfx.fillStyle(0x000000, 0.85);
   gfx.fillRect(0, 0, 800, 600);
 
-  // Receipt box
   gfx.fillStyle(0x0D0E14);
   gfx.fillRoundedRect(200, 30, 400, 540, 8);
   gfx.lineStyle(2, 0x00F0FF, 0.5);
   gfx.strokeRoundedRect(200, 30, 400, 540, 8);
 
-  gfx.fillStyle(0x00F0FF);
-  drawText(gfx, 'DIGITAL RECEIPT', 400, 50, 2);
+  if (textPool.length === 0) {
+    var yy = 50;
+    makeText(400, yy, 'DIGITAL RECEIPT', 24, '#00F0FF'); yy += 40;
 
+    // Items list
+    var maxShow = Math.min(collected.length, 14);
+    for (var i = 0; i < maxShow; i++) {
+      var ci = collected[i];
+      gfx.fillStyle(ci.color);
+      gfx.fillRoundedRect(230, yy + 2, 14, 14, 2);
+      makeText(252, yy, 'ITEM ' + (i + 1), 14, '#CCCCCC', 0);
+      makeText(560, yy, '$' + ci.val, 14, COLOR_STR[ci.val] || '#ffffff', 1);
+      yy += 22;
+    }
+    if (collected.length > maxShow) {
+      makeText(400, yy, '+ ' + (collected.length - maxShow) + ' MORE', 13, '#888888');
+      yy += 22;
+    }
+
+    yy += 15;
+    var overBudget = budget > 100;
+    makeText(400, yy, 'TOTAL  $' + budget, 22, overBudget ? '#FF0055' : '#BDFF00');
+    if (overBudget) {
+      yy += 30;
+      makeText(400, yy, 'OVER BUDGET!', 18, '#FF0055');
+    }
+    yy += 35;
+
+    var sc = calcScore();
+    makeText(400, yy, 'TIME ' + timeAlive.toFixed(1) + 's', 14, '#ffffff'); yy += 25;
+    makeText(400, yy, 'SCORE ' + sc.toFixed(1), 26, '#00F0FF'); yy += 35;
+
+    if (sc >= highScore && sc > 0) {
+      makeText(400, yy, 'NEW HIGH SCORE!', 18, '#FFFF00'); yy += 25;
+    }
+    makeText(400, yy, 'HI ' + highScore.toFixed(1), 14, '#FF0055'); yy += 40;
+
+    // Blink text — store index for blinking
+    makeText(400, 530, 'PRESS START', 20, '#888888');
+  }
+
+  // Receipt divider lines (drawn each frame since gfx clears)
   gfx.fillStyle(0x333333);
-  gfx.fillRect(220, 85, 360, 1);
+  gfx.fillRect(220, 88, 360, 1);
+  var maxShow2 = Math.min(collected.length, 14);
+  var divY = 90 + maxShow2 * 22 + (collected.length > maxShow2 ? 22 : 0) + 10;
+  gfx.fillRect(220, divY, 360, 1);
 
-  // Items list
-  var yy = 100;
-  var maxShow = Math.min(collected.length, 14);
-  for (var i = 0; i < maxShow; i++) {
-    var ci = collected[i];
-    gfx.fillStyle(ci.color);
-    gfx.fillRoundedRect(230, yy, 14, 14, 2);
-    gfx.fillStyle(0xCCCCCC);
-    drawText(gfx, 'ITEM ' + (i + 1), 290, yy + 1, 1);
-    gfx.fillStyle(ci.color);
-    drawText(gfx, '$' + ci.val, 540, yy + 1, 1);
-    yy += 22;
-  }
-  if (collected.length > maxShow) {
-    gfx.fillStyle(0x888888);
-    drawText(gfx, '+ ' + (collected.length - maxShow) + ' MORE', 400, yy, 1);
-    yy += 22;
+  // Colored boxes for receipt items
+  var boxY = 92;
+  for (var bi = 0; bi < Math.min(collected.length, 14); bi++) {
+    gfx.fillStyle(collected[bi].color);
+    gfx.fillRoundedRect(230, boxY + 2, 14, 14, 2);
+    boxY += 22;
   }
 
-  gfx.fillStyle(0x333333);
-  gfx.fillRect(220, yy + 5, 360, 1);
-  yy += 20;
-
-  // Total
-  var overBudget = budget > 100;
-  gfx.fillStyle(overBudget ? 0xFF0055 : 0xBDFF00);
-  drawText(gfx, 'TOTAL  $' + budget, 400, yy, 1.8);
-  if (overBudget) {
-    yy += 30;
-    gfx.fillStyle(0xFF0055);
-    drawText(gfx, 'OVER BUDGET', 400, yy, 1.5);
-  }
-  yy += 35;
-
-  // Score
-  var sc = calcScore();
-  gfx.fillStyle(0xFFFFFF);
-  drawText(gfx, 'TIME ' + timeAlive.toFixed(1) + 'S', 400, yy, 1.2);
-  yy += 25;
-  gfx.fillStyle(0x00F0FF);
-  drawText(gfx, 'SCORE ' + sc.toFixed(1), 400, yy, 2);
-  yy += 35;
-
-  if (sc >= highScore && sc > 0) {
-    gfx.fillStyle(0xFFFF00);
-    drawText(gfx, 'NEW HIGH SCORE', 400, yy, 1.5);
-    yy += 25;
-  }
-  gfx.fillStyle(0xFF0055);
-  drawText(gfx, 'HI ' + highScore.toFixed(1), 400, yy, 1.2);
-
-  // Restart hint
-  gfx.fillStyle(0x888888);
+  // Blink last text
   var blink = Math.sin(Date.now() * 0.004) > 0;
-  if (blink) drawText(gfx, 'PRESS START', 400, 545, 1.5);
+  textPool[textPool.length - 1].setVisible(blink);
 }
 
 // --- GRID ---
@@ -440,50 +471,6 @@ function updateParticles() {
     var a = p.life / 30;
     gfx.fillStyle(p.color, a);
     gfx.fillCircle(p.x, p.y, p.size * (p.life / 30));
-  }
-}
-
-// --- PIXEL TEXT ---
-function drawText(g, text, x, y, size) {
-  var chars = {
-    'A': [0x7C, 0x92, 0x92, 0x7C, 0x92], 'B': [0xFE, 0x92, 0x92, 0x6C, 0x00],
-    'C': [0x7C, 0x82, 0x82, 0x44, 0x00], 'D': [0xFE, 0x82, 0x82, 0x7C, 0x00],
-    'E': [0xFE, 0x92, 0x92, 0x82, 0x00], 'F': [0xFE, 0x12, 0x12, 0x02, 0x00],
-    'G': [0x7C, 0x82, 0x92, 0x74, 0x00], 'H': [0xFE, 0x10, 0x10, 0xFE, 0x00],
-    'I': [0x00, 0x82, 0xFE, 0x82, 0x00], 'J': [0x40, 0x80, 0x80, 0x7E, 0x00],
-    'K': [0xFE, 0x10, 0x28, 0xC6, 0x00], 'L': [0xFE, 0x80, 0x80, 0x80, 0x00],
-    'M': [0xFE, 0x04, 0x18, 0x04, 0xFE], 'N': [0xFE, 0x08, 0x10, 0x20, 0xFE],
-    'O': [0x7C, 0x82, 0x82, 0x7C, 0x00], 'P': [0xFE, 0x12, 0x12, 0x0C, 0x00],
-    'Q': [0x7C, 0x82, 0xA2, 0x7C, 0x80], 'R': [0xFE, 0x12, 0x32, 0xCC, 0x00],
-    'S': [0x64, 0x92, 0x92, 0x4C, 0x00], 'T': [0x02, 0x02, 0xFE, 0x02, 0x02],
-    'U': [0x7E, 0x80, 0x80, 0x7E, 0x00], 'V': [0x3E, 0x40, 0x80, 0x40, 0x3E],
-    'W': [0x7E, 0x80, 0x70, 0x80, 0x7E], 'X': [0xC6, 0x28, 0x10, 0x28, 0xC6],
-    'Y': [0x06, 0x08, 0xF0, 0x08, 0x06], 'Z': [0xC2, 0xA2, 0x92, 0x8E, 0x00],
-    '0': [0x7C, 0xA2, 0x92, 0x8A, 0x7C], '1': [0x00, 0x84, 0xFE, 0x80, 0x00],
-    '2': [0xC4, 0xA2, 0x92, 0x8C, 0x00], '3': [0x44, 0x92, 0x92, 0x6C, 0x00],
-    '4': [0x1E, 0x10, 0xFE, 0x10, 0x00], '5': [0x4E, 0x8A, 0x8A, 0x72, 0x00],
-    '6': [0x7C, 0x92, 0x92, 0x64, 0x00], '7': [0x02, 0xE2, 0x12, 0x0E, 0x00],
-    '8': [0x6C, 0x92, 0x92, 0x6C, 0x00], '9': [0x4C, 0x92, 0x92, 0x7C, 0x00],
-    ' ': [0x00, 0x00, 0x00, 0x00, 0x00], '-': [0x10, 0x10, 0x10, 0x10, 0x00],
-    '$': [0x4C, 0xFE, 0x92, 0x64, 0x00], '.': [0x00, 0x00, 0x80, 0x00, 0x00],
-    '/': [0xC0, 0x20, 0x10, 0x08, 0x06], '+': [0x10, 0x10, 0x7C, 0x10, 0x10],
-    'x': [0xC6, 0x28, 0x10, 0x28, 0xC6]
-  };
-  var spacing = 7 * size;
-  var startX = x - (text.length * spacing) / 2;
-  text = text.toUpperCase();
-  for (var ci = 0; ci < text.length; ci++) {
-    var data = chars[text[ci]];
-    if (data) {
-      for (var col = 0; col < 5; col++) {
-        for (var row = 0; row < 8; row++) {
-          if (data[col] & (1 << row)) {
-            g.fillRect(startX + col * size, y + row * size, size - 0.5, size - 0.5);
-          }
-        }
-      }
-    }
-    startX += spacing;
   }
 }
 
