@@ -96,9 +96,9 @@ function create() {
     var k = KEYBOARD_TO_ARCADE[e.key] || e.key;
     keys[k] = true;
     if (state === 'menu') {
-      if (k === 'START1' || k === 'P1A') startGame();
+      if (k === 'P1A') startGame();
     } else if (state === 'gameover') {
-      if (k === 'START1' || k === 'P1B') { state = 'menu'; }
+      if (k === 'P1A') { state = 'menu'; }
     }
     if (state === 'playing') {
       if (k === 'P1U' && dir !== 'down') nextDir = 'up';
