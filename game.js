@@ -35,6 +35,13 @@ var musicStep = 0;
 var menuMusicInterval = null;
 var menuMusicStep = 0;
 var menuMusicPlaying = false;
+var rocks = [];
+var lastRockTime = 0;
+var rockSpawnInterval = 15000; // 15 seconds
+var rockGraceTime = 20000;    // first rock at 20 seconds
+var firstRockSpawned = false;
+var glitchTimer = 0;
+var glitchActive = false;
 
 // Text object pools
 var textPool = [];
@@ -114,6 +121,11 @@ function startGame() {
   startTime = Date.now();
   boosting = false; boostCooldown = 0;
   particles = [];
+  rocks = [];
+  lastRockTime = 0;
+  firstRockSpawned = false;
+  glitchTimer = 0;
+  glitchActive = false;
   spawnItem();
   spawnItem();
   startMusic();
@@ -135,6 +147,64 @@ function spawnItem() {
   } while (!ok && tries < 100);
   var v = VALUES[Math.floor(Math.random() * VALUES.length)];
   items.push({ x: x, y: y, val: v, pulse: 0 });
+}
+
+function spawnRock() {
+  var tries = 0, rx, ry, ok;
+  do {
+    rx = Math.floor(Math.random() * (COLS - 4));
+    ry = 2 + Math.floor(Math.random() * (ROWS - 5));
+    ok = true;
+    // Check against entire snake body
+    for (var si = 0; si < snake.length; si++) {
+      var sx = snake[si].x, sy = snake[si].y;
+      if (sx >= rx && sx < rx + 4 && sy >= ry && sy < ry + 4) { ok = false; break; }
+    }
+    // Check against existing rocks
+    if (ok) {
+      for (var ri = 0; ri < rocks.length; ri++) {
+        var er = rocks[ri];
+        if (rx < er.x + 4 && rx + 4 > er.x && ry < er.y + 4 && ry + 4 > er.y) { ok = false; break; }
+      }
+    }
+    tries++;
+  } while (!ok && tries < 200);
+  // If no valid position found, skip this rock
+  if (!ok) return;
+  rocks.push({ x: rx, y: ry });
+  // Remove items that overlap the new rock
+  for (var i = items.length - 1; i >= 0; i--) {
+    if (items[i].x >= rx && items[i].x < rx + 4 && items[i].y >= ry && items[i].y < ry + 4) {
+      items.splice(i, 1);
+      spawnItem(); // replace it elsewhere
+    }
+  }
+  // Screen shake effect
+  scene.cameras.main.shake(300, 0.012);
+  playRockSFX();
+}
+
+function playRockSFX() {
+  // Harsh descending noise burst — signals danger
+  try {
+    var ctx = getAudioCtx(); if (!ctx) return;
+    // Low rumble
+    playTone(80, 0.3, 0.15, 'sawtooth');
+    // Descending screech
+    var o = ctx.createOscillator();
+    var g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(600, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.25);
+    g.gain.setValueAtTime(0.12, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    o.start(ctx.currentTime);
+    o.stop(ctx.currentTime + 0.3);
+    // High noise click
+    setTimeout(function () { playTone(900, 0.05, 0.08, 'square'); }, 50);
+    setTimeout(function () { playTone(200, 0.1, 0.1, 'square'); }, 100);
+  } catch (e) { }
 }
 
 function calcScore() {
@@ -221,6 +291,14 @@ function updatePlaying(delta) {
     }
   }
 
+  // Rock collision — check if head overlaps any 4x4 rock
+  for (var ri = 0; ri < rocks.length; ri++) {
+    var r = rocks[ri];
+    if (head.x >= r.x && head.x < r.x + 4 && head.y >= r.y && head.y < r.y + 4) {
+      gameOver(); return;
+    }
+  }
+
   snake.unshift(head);
 
   // Check items
@@ -245,6 +323,17 @@ function updatePlaying(delta) {
   if (boosting && snake.length > 0) {
     var tail = snake[snake.length - 1];
     createParticles(tail.x * GS + GS / 2, tail.y * GS + GS / 2, 0x00F0FF, 3);
+  }
+
+  // Rock spawning — first rock at 20s, then every 15s (real time)
+  var elapsed = Date.now() - startTime;
+  if (!firstRockSpawned && elapsed >= rockGraceTime) {
+    firstRockSpawned = true;
+    lastRockTime = Date.now();
+    spawnRock();
+  } else if (firstRockSpawned && Date.now() - lastRockTime >= rockSpawnInterval) {
+    lastRockTime = Date.now();
+    spawnRock();
   }
 
   // Heartbeat
@@ -324,6 +413,35 @@ function drawPlaying(time) {
       gfx.lineStyle(1, 0xFFFFFF, 0.15);
       gfx.strokeRoundedRect(sx + 2, sy + 2, GS - 4, GS - 4, 4);
     }
+  }
+
+  // Draw rocks
+  for (var rk = 0; rk < rocks.length; rk++) {
+    var rock = rocks[rk];
+    var rx = rock.x * GS, ry = rock.y * GS;
+    var rw = 4 * GS, rh = 4 * GS;
+    // Red danger glow
+    gfx.fillStyle(0xFF0033, 0.12);
+    gfx.fillRect(rx - 4, ry - 4, rw + 8, rh + 8);
+    // Dark rock body
+    gfx.fillStyle(0x1A0A0A, 0.95);
+    gfx.fillRect(rx, ry, rw, rh);
+    // Jagged internal lines for texture
+    gfx.lineStyle(1, 0x330011, 0.6);
+    for (var rl = 0; rl < 4; rl++) {
+      gfx.moveTo(rx, ry + rl * GS); gfx.lineTo(rx + rw, ry + rl * GS);
+      gfx.moveTo(rx + rl * GS, ry); gfx.lineTo(rx + rl * GS, ry + rh);
+    }
+    gfx.strokePath();
+    // Danger border
+    gfx.lineStyle(2, 0xFF0033, 0.5);
+    gfx.strokeRect(rx, ry, rw, rh);
+    // Skull/danger symbol — X marks
+    gfx.lineStyle(2, 0xFF0033, 0.4);
+    var cx = rx + rw / 2, cy = ry + rh / 2;
+    gfx.moveTo(cx - 12, cy - 12); gfx.lineTo(cx + 12, cy + 12);
+    gfx.moveTo(cx + 12, cy - 12); gfx.lineTo(cx - 12, cy + 12);
+    gfx.strokePath();
   }
 
   updateParticles();
