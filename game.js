@@ -73,6 +73,9 @@ function clearTexts() {
     textPool[i].destroy();
   }
   textPool = [];
+  for (var j = 0; j < itemTexts.length; j++) {
+    itemTexts[j].destroy();
+  }
   itemTexts = [];
 }
 
@@ -509,60 +512,60 @@ function drawReceipt() {
   gfx.lineStyle(2, 0x00F0FF, 0.5);
   gfx.strokeRoundedRect(200, 30, 400, 540, 8);
 
+  // Layout constants
+  var ROW_H = 20;
+  var maxShow = Math.min(collected.length, 8);
+  var listTop = 95;
+
   if (textPool.length === 0) {
-    var yy = 50;
-    makeText(400, yy, 'DIGITAL RECEIPT', 24, '#00F0FF'); yy += 40;
+    makeText(400, 50, 'DIGITAL RECEIPT', 24, '#00F0FF');
 
     // Items list
-    var maxShow = Math.min(collected.length, 14);
     for (var i = 0; i < maxShow; i++) {
       var ci = collected[i];
-      gfx.fillStyle(ci.color);
-      gfx.fillRoundedRect(230, yy + 2, 14, 14, 2);
-      makeText(252, yy, 'ITEM ' + (i + 1), 14, '#CCCCCC', 0);
-      makeText(560, yy, '$' + ci.val, 14, COLOR_STR[ci.val] || '#ffffff', 1);
-      yy += 22;
+      var ry = listTop + i * ROW_H;
+      makeText(252, ry, 'ITEM ' + (i + 1), 13, '#CCCCCC', 0);
+      var priceText = makeText(560, ry, '$' + ci.val, 13, COLOR_STR[ci.val] || '#ffffff', 0);
+      priceText.setOrigin(1, 0); // right-align, top-anchor
     }
+    var yy = listTop + maxShow * ROW_H;
     if (collected.length > maxShow) {
-      makeText(400, yy, '+ ' + (collected.length - maxShow) + ' MORE', 13, '#888888');
-      yy += 22;
+      makeText(400, yy, '+ ' + (collected.length - maxShow) + ' MORE', 12, '#888888');
+      yy += ROW_H;
     }
 
-    yy += 15;
+    yy += 12;
     var overBudget = budget > 100;
-    makeText(400, yy, 'TOTAL  $' + budget, 22, overBudget ? '#FF0055' : '#BDFF00');
+    makeText(400, yy, 'TOTAL  $' + budget, 20, overBudget ? '#FF0055' : '#BDFF00');
     if (overBudget) {
-      yy += 30;
-      makeText(400, yy, 'OVER BUDGET!', 18, '#FF0055');
+      yy += 26;
+      makeText(400, yy, 'OVER BUDGET!', 16, '#FF0055');
     }
-    yy += 35;
+    yy += 30;
 
     var sc = calcScore();
-    makeText(400, yy, 'TIME ' + timeAlive.toFixed(1) + 's', 14, '#ffffff'); yy += 25;
-    makeText(400, yy, 'SCORE ' + sc.toFixed(1), 26, '#00F0FF'); yy += 35;
+    makeText(400, yy, 'TIME ' + timeAlive.toFixed(1) + 's', 13, '#ffffff'); yy += 22;
+    makeText(400, yy, 'SCORE ' + sc.toFixed(1), 24, '#00F0FF'); yy += 30;
 
     if (sc >= highScore && sc > 0) {
-      makeText(400, yy, 'NEW HIGH SCORE!', 18, '#FFFF00'); yy += 25;
+      makeText(400, yy, 'NEW HIGH SCORE!', 16, '#FFFF00'); yy += 22;
     }
-    makeText(400, yy, 'HI ' + highScore.toFixed(1), 14, '#FF0055'); yy += 40;
+    makeText(400, yy, 'HI ' + highScore.toFixed(1), 13, '#FF0055');
 
-    // Blink text — store index for blinking
-    makeText(400, 530, 'PRESS START', 20, '#888888');
+    // Blink text — always at fixed position
+    makeText(400, 535, 'PRESS START', 18, '#888888');
   }
 
-  // Receipt divider lines (drawn each frame since gfx clears)
+  // Divider lines (drawn each frame since gfx clears)
   gfx.fillStyle(0x333333);
   gfx.fillRect(220, 88, 360, 1);
-  var maxShow2 = Math.min(collected.length, 14);
-  var divY = 90 + maxShow2 * 22 + (collected.length > maxShow2 ? 22 : 0) + 10;
+  var divY = listTop + maxShow * ROW_H + (collected.length > maxShow ? ROW_H : 0) + 6;
   gfx.fillRect(220, divY, 360, 1);
 
-  // Colored boxes for receipt items
-  var boxY = 92;
-  for (var bi = 0; bi < Math.min(collected.length, 14); bi++) {
+  // Colored boxes for receipt items (drawn each frame, aligned with text)
+  for (var bi = 0; bi < maxShow; bi++) {
     gfx.fillStyle(collected[bi].color);
-    gfx.fillRoundedRect(230, boxY + 2, 14, 14, 2);
-    boxY += 22;
+    gfx.fillRoundedRect(230, listTop + bi * ROW_H + 2, 14, 14, 2);
   }
 
   // Blink last text
