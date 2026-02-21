@@ -176,13 +176,17 @@ function drawMenu() {
 }
 
 // --- PLAYING ---
+var wasBoosting = false;
 function updatePlaying(delta) {
   if (boostCooldown > 0) boostCooldown -= delta;
+  var prevBoosting = boosting;
   if (keys['P1A'] && boostCooldown <= 0) {
     boosting = true;
   } else {
     boosting = false;
   }
+  // Play boost sound on activation
+  if (boosting && !prevBoosting) playBoost();
 
   var spd = boosting ? moveDelay * 0.45 : moveDelay;
   moveTimer += delta;
@@ -516,4 +520,11 @@ function playGameOver() {
   freqs.forEach(function (f, i) {
     setTimeout(function () { playTone(f, 0.25, 0.15, 'sawtooth'); }, i * 120);
   });
+}
+
+function playBoost() {
+  // Rising whoosh — three quick ascending tones
+  playTone(300, 0.08, 0.1, 'sawtooth');
+  setTimeout(function () { playTone(500, 0.08, 0.12, 'sawtooth'); }, 40);
+  setTimeout(function () { playTone(800, 0.12, 0.1, 'sine'); }, 80);
 }
