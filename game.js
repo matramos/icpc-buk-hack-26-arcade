@@ -254,7 +254,7 @@ function playRockSFX() {
 }
 
 function calcScore() {
-  timeAlive = (Date.now() - startTime) / 1000;
+  if (state === 'playing') timeAlive = (Date.now() - startTime) / 1000;
   var multiplier = budget <= 100 ? (budget / 100) : Math.max(0, (200 - budget) / 100);
   return Math.floor(multiplier * timeAlive * 10) / 10;
 }
