@@ -278,18 +278,18 @@ function drawMenu() {
   gfx.fillRect(0, 0, 800, 600);
 
   if (textPool.length === 0) {
-    makeText(400, 60, 'THE', 28, '#00F0FF');
-    makeText(400, 95, '$100', 52, '#ffffff');
-    makeText(400, 165, 'TECH QUEUE', 30, '#00F0FF');
-    makeText(400, 225, 'COLLECT DEALS', 15, '#BDFF00');
-    makeText(400, 250, 'STAY UNDER $100', 15, '#FF0055');
+    makeText(400, 55, 'COMPRA', 28, '#00F0FF');
+    makeText(400, 90, 'CHAMPAGNE', 48, '#ffffff');
+    makeText(400, 160, '$100', 30, '#BDFF00');
+    makeText(400, 215, 'COLLECT DEALS', 14, '#BDFF00');
+    makeText(400, 238, 'STAY UNDER $100', 14, '#FF0055');
 
     // Leaderboard
     if (leaderboard.length > 0) {
-      makeText(400, 300, 'TOP SCORES', 16, '#00F0FF');
+      makeText(400, 285, 'TOP SCORES', 16, '#00F0FF');
       for (var li = 0; li < leaderboard.length; li++) {
         var entry = leaderboard[li];
-        var ly = 325 + li * 22;
+        var ly = 310 + li * 22;
         makeText(310, ly, (li + 1) + '.', 13, '#888888', 0);
         makeText(335, ly, entry.name, 13, '#FFFF00', 0);
         var scoreT = makeText(490, ly, entry.score.toFixed(1), 13, '#ffffff', 0);
@@ -300,9 +300,62 @@ function drawMenu() {
     // Press start blink (always last in textPool)
     makeText(400, 530, 'PRESS START', 24, '#FFFF00');
   }
+
+  // Draw pixel art champagne bottle + $ sign (every frame since gfx clears)
+  drawChampagneIcon(160, 75);
+  drawChampagneIcon(600, 75);
+
   // Blink PRESS START (last item in pool)
   var blink = Math.sin(Date.now() * 0.005) > 0;
   textPool[textPool.length - 1].setVisible(blink);
+}
+
+function drawChampagneIcon(bx, by) {
+  var P = 4; // pixel size
+
+  // Bottle body — dark green
+  gfx.fillStyle(0x1B5E20, 1);
+  gfx.fillRect(bx + 2 * P, by + 6 * P, 6 * P, 14 * P);  // main body
+  gfx.fillRect(bx + 3 * P, by + 4 * P, 4 * P, 2 * P);    // shoulder taper
+  gfx.fillRect(bx + 4 * P, by + 2 * P, 2 * P, 2 * P);    // neck
+
+  // Gold foil top
+  gfx.fillStyle(0xFFD700, 1);
+  gfx.fillRect(bx + 3 * P, by + 1 * P, 4 * P, 1 * P);    // foil wrap
+  gfx.fillRect(bx + 4 * P, by + 0 * P, 2 * P, 1 * P);    // cork top
+
+  // Label — white stripe
+  gfx.fillStyle(0xFFFFFF, 0.7);
+  gfx.fillRect(bx + 2 * P, by + 10 * P, 6 * P, 3 * P);
+
+  // Label accent — gold
+  gfx.fillStyle(0xFFD700, 0.5);
+  gfx.fillRect(bx + 2 * P, by + 11 * P, 6 * P, 1 * P);
+
+  // Bottle highlight — light green edge
+  gfx.fillStyle(0x4CAF50, 0.4);
+  gfx.fillRect(bx + 2 * P, by + 6 * P, 1 * P, 14 * P);
+
+  // Bubbles — animated
+  var t = Date.now() * 0.003;
+  for (var bi = 0; bi < 3; bi++) {
+    var bubY = by - 4 * P - ((t + bi * 2.5) % 6) * P;
+    var bubX = bx + 4 * P + Math.sin(t + bi * 1.7) * 2 * P;
+    gfx.fillStyle(0xFFFFFF, 0.3 + Math.sin(t + bi) * 0.1);
+    gfx.fillCircle(bubX, bubY, P * 0.6);
+  }
+
+  // Dollar sign next to bottle
+  gfx.fillStyle(0xBDFF00, 0.8);
+  // S-shape of dollar sign using pixel blocks
+  var dx = bx + 11 * P, dy = by + 6 * P;
+  gfx.fillRect(dx + 1 * P, dy + 0 * P, 3 * P, 1 * P); // top bar
+  gfx.fillRect(dx + 0 * P, dy + 1 * P, 2 * P, 1 * P); // left top
+  gfx.fillRect(dx + 1 * P, dy + 2 * P, 2 * P, 1 * P); // middle
+  gfx.fillRect(dx + 2 * P, dy + 3 * P, 2 * P, 1 * P); // right bottom
+  gfx.fillRect(dx + 0 * P, dy + 4 * P, 3 * P, 1 * P); // bottom bar
+  // vertical line through $
+  gfx.fillRect(dx + 1.5 * P, dy - 0.5 * P, 1 * P, 6 * P);
 }
 
 // --- PLAYING ---
