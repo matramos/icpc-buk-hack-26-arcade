@@ -289,7 +289,7 @@ function drawMenu() {
     makeText(400, 90, 'CHAMPAGNE', 48, '#ffffff');
     makeText(400, 160, '$100', 30, '#BDFF00');
     makeText(400, 215, 'COLLECT DEALS', 14, '#BDFF00');
-    makeText(400, 238, 'STAY UNDER $100', 14, '#FF0055');
+    makeText(400, 238, 'STAY UNDER $100', 22, '#FF3366');
 
     // Leaderboard
     if (leaderboard.length > 0) {
@@ -305,14 +305,14 @@ function drawMenu() {
     }
 
     // Press start blink (always last in textPool)
-    makeText(400, 530, 'PRESS START', 24, '#FFFF00');
+    makeText(400, 530, 'PRESS BTN1', 24, '#FFFF00');
   }
 
   // Draw pixel art champagne bottle + $ sign (every frame since gfx clears)
   drawChampagneIcon(160, 75);
   drawChampagneIcon(600, 75);
 
-  // Blink PRESS START (last item in pool)
+  // Blink PRESS BTN1 (last item in pool)
   var blink = Math.sin(Date.now() * 0.005) > 0;
   textPool[textPool.length - 1].setVisible(blink);
 }
@@ -566,6 +566,26 @@ function drawPlaying(time) {
   }
 
   updateParticles();
+
+  // Red danger vignette when budget >= $90
+  if (budget >= 90) {
+    var danger = Math.min((budget - 90) / 10, 1); // 0 at $90 → 1 at $100
+    var pulse = 0.5 + Math.sin(Date.now() * 0.008) * 0.5; // 0-1 pulsing
+    var alpha = danger * 0.15 + danger * pulse * 0.1;
+    // Vignette borders
+    gfx.fillStyle(0xFF0020, alpha);
+    gfx.fillRect(0, 0, 800, 8);           // top
+    gfx.fillRect(0, 592, 800, 8);         // bottom
+    gfx.fillRect(0, 0, 8, 600);           // left
+    gfx.fillRect(792, 0, 8, 600);         // right
+    // Corner glow
+    gfx.fillStyle(0xFF0020, alpha * 0.6);
+    gfx.fillRect(0, 0, 40, 40);
+    gfx.fillRect(760, 0, 40, 40);
+    gfx.fillRect(0, 560, 40, 40);
+    gfx.fillRect(760, 560, 40, 40);
+  }
+
   drawHUD();
 }
 
@@ -659,7 +679,7 @@ function drawReceipt() {
     makeText(400, yy, 'HI ' + highScore.toFixed(1), 13, '#FF0055');
 
     // Blink text — always at fixed position
-    makeText(400, 535, 'PRESS START', 18, '#888888');
+    makeText(400, 535, 'PRESS BTN1', 18, '#888888');
   }
 
   // Divider lines (drawn each frame since gfx clears)
@@ -785,10 +805,23 @@ function playTone(freq, dur, vol, type) {
 
 function playHeartbeat() {
   var intensity = Math.min(budget / 100, 1);
-  playTone(40 + intensity * 30, 0.15, 0.06 + intensity * 0.08, 'sine');
+  var vol1 = 0.06 + intensity * 0.08;
+  var vol2 = 0.04 + intensity * 0.06;
+  // Extra loud and deep past $90
+  if (budget >= 90) {
+    vol1 = 0.16 + intensity * 0.1;
+    vol2 = 0.12 + intensity * 0.08;
+  }
+  playTone(40 + intensity * 30, 0.15, vol1, 'sine');
   setTimeout(function () {
-    playTone(35 + intensity * 25, 0.1, 0.04 + intensity * 0.06, 'sine');
+    playTone(35 + intensity * 25, 0.1, vol2, 'sine');
   }, 120);
+  // Third urgent beat past $90
+  if (budget >= 90) {
+    setTimeout(function () {
+      playTone(50, 0.08, vol2 * 0.7, 'sine');
+    }, 220);
+  }
 }
 
 function playPickup() {
