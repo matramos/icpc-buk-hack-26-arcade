@@ -45,6 +45,9 @@ var musicStep = 0;
 var menuMusicInterval = null;
 var menuMusicStep = 0;
 var menuMusicPlaying = false;
+var goMusicInterval = null;
+var goMusicStep = 0;
+var goMusicPlaying = false;
 var rocks = [];
 var lastRockTime = 0;
 var rockSpawnInterval = 15000; // 15 seconds
@@ -111,9 +114,10 @@ function create() {
     } else if (state === 'gameover') {
       if (k === 'P1A') { state = 'nameentry'; nameChars = [0, 0, 0]; namePos = 0; }
     } else if (state === 'nameentry') {
-      if (k === 'P1U') { nameChars[namePos] = (nameChars[namePos] + 1) % 26; clearTexts(); }
-      if (k === 'P1D') { nameChars[namePos] = (nameChars[namePos] + 25) % 26; clearTexts(); }
+      if (k === 'P1U') { nameChars[namePos] = (nameChars[namePos] + 1) % 26; clearTexts(); playTone(600, 0.04, 0.06, 'square'); }
+      if (k === 'P1D') { nameChars[namePos] = (nameChars[namePos] + 25) % 26; clearTexts(); playTone(500, 0.04, 0.06, 'square'); }
       if (k === 'P1A') {
+        playTone(800, 0.06, 0.1, 'sine');
         namePos++;
         if (namePos >= 3) {
           var name = ALPHA[nameChars[0]] + ALPHA[nameChars[1]] + ALPHA[nameChars[2]];
@@ -257,6 +261,7 @@ function update(time, delta) {
   if (state !== lastState) {
     clearTexts();
     if (state === 'menu' && !menuMusicPlaying) startMenuMusic();
+    if (state === 'menu' || state === 'playing') stopGoMusic();
     lastState = state;
   }
 
@@ -409,6 +414,7 @@ function gameOver() {
     try { localStorage.setItem('tq_hs', highScore.toString()); } catch (e) { }
   }
   playGameOver();
+  startGoMusic();
 }
 
 function drawPlaying(time) {
@@ -812,6 +818,77 @@ function playMenuNote() {
       sGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
       sOsc.start(ctx.currentTime);
       sOsc.stop(ctx.currentTime + 0.12);
+    }
+  } catch (e) { }
+}
+
+// --- GAME OVER MUSIC ---
+// Slow, melancholic sine arpeggios — same Am key but relaxed
+var GO_MELODY = [220, 261, 329, 392, 440, 392, 329, 261]; // Am ascending/descending
+var GO_BASS = [55, 55, 65.4, 65.4, 73.4, 73.4, 55, 55];   // gentle bass movement
+
+function startGoMusic() {
+  stopGoMusic();
+  goMusicStep = 0;
+  goMusicPlaying = true;
+  scheduleGoNote();
+}
+
+function stopGoMusic() {
+  if (goMusicInterval) {
+    clearTimeout(goMusicInterval);
+    goMusicInterval = null;
+  }
+  goMusicPlaying = false;
+}
+
+function scheduleGoNote() {
+  if (state !== 'gameover' && state !== 'nameentry') { goMusicPlaying = false; return; }
+  playGoNote();
+  goMusicStep++;
+  goMusicInterval = setTimeout(scheduleGoNote, 350);
+}
+
+function playGoNote() {
+  try {
+    var ctx = getAudioCtx(); if (!ctx) return;
+    var step8 = goMusicStep % 8;
+
+    // Soft sine bass pad — every other step
+    if (goMusicStep % 2 === 0) {
+      var bOsc = ctx.createOscillator();
+      var bGain = ctx.createGain();
+      bOsc.connect(bGain); bGain.connect(ctx.destination);
+      bOsc.frequency.value = GO_BASS[step8];
+      bOsc.type = 'sine';
+      bGain.gain.setValueAtTime(0.04, ctx.currentTime);
+      bGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      bOsc.start(ctx.currentTime);
+      bOsc.stop(ctx.currentTime + 0.6);
+    }
+
+    // Gentle triangle melody
+    var mOsc = ctx.createOscillator();
+    var mGain = ctx.createGain();
+    mOsc.connect(mGain); mGain.connect(ctx.destination);
+    mOsc.frequency.value = GO_MELODY[step8];
+    mOsc.type = 'triangle';
+    mGain.gain.setValueAtTime(0.03, ctx.currentTime);
+    mGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    mOsc.start(ctx.currentTime);
+    mOsc.stop(ctx.currentTime + 0.4);
+
+    // High shimmer — every 4 steps
+    if (goMusicStep % 4 === 0) {
+      var sOsc = ctx.createOscillator();
+      var sGain = ctx.createGain();
+      sOsc.connect(sGain); sGain.connect(ctx.destination);
+      sOsc.frequency.value = GO_MELODY[step8] * 2;
+      sOsc.type = 'sine';
+      sGain.gain.setValueAtTime(0.015, ctx.currentTime);
+      sGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      sOsc.start(ctx.currentTime);
+      sOsc.stop(ctx.currentTime + 0.5);
     }
   } catch (e) { }
 }
