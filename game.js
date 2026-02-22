@@ -182,6 +182,13 @@ function spawnItem() {
     for (var j = 0; j < items.length; j++) {
       if (items[j].x === x && items[j].y === y) { ok = false; break; }
     }
+    // Check against rocks (4x4 blocks)
+    if (ok) {
+      for (var ri = 0; ri < rocks.length; ri++) {
+        var r = rocks[ri];
+        if (x >= r.x && x < r.x + 4 && y >= r.y && y < r.y + 4) { ok = false; break; }
+      }
+    }
     tries++;
   } while (!ok && tries < 100);
   var v = VALUES[Math.floor(Math.random() * VALUES.length)];
