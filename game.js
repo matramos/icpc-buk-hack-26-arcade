@@ -26,7 +26,7 @@ var state = 'menu';
 var snake, dir, nextDir, moveTimer, moveDelay;
 var items, budget, collected, timeAlive, startTime;
 var highScore = 0;
-var boosting = false, boostCooldown = 0;
+
 var particles = [];
 var heartbeatTimer = 0;
 var audioCtx = null;
@@ -156,7 +156,7 @@ function startGame() {
   collected = [];
   timeAlive = 0;
   startTime = Date.now();
-  boosting = false; boostCooldown = 0;
+
   particles = [];
   rocks = [];
   lastRockTime = 0;
@@ -254,9 +254,9 @@ function playRockSFX() {
 }
 
 function calcScore() {
-  if (state === 'playing') timeAlive = (Date.now() - startTime) / 1000;
+  var t = state === 'playing' ? (Date.now() - startTime) / 1000 : timeAlive;
   var multiplier = budget <= 100 ? (budget / 100) : Math.max(0, (200 - budget) / 100);
-  return Math.floor(multiplier * timeAlive * 10) / 10;
+  return Math.floor(multiplier * t * 10) / 10;
 }
 
 var lastState = '';
@@ -366,22 +366,10 @@ function drawChampagneIcon(bx, by) {
 }
 
 // --- PLAYING ---
-var wasBoosting = false;
 function updatePlaying(delta) {
-  if (boostCooldown > 0) boostCooldown -= delta;
-  var prevBoosting = boosting;
-  if (keys['P1A'] && boostCooldown <= 0) {
-    boosting = true;
-  } else {
-    boosting = false;
-  }
-  // Play boost sound on activation
-  if (boosting && !prevBoosting) playBoost();
-
   moveDelay = 150 - calcIntensity() * 50;
-  var spd = boosting ? moveDelay * 0.45 : moveDelay;
   moveTimer += delta;
-  if (moveTimer < spd) return;
+  if (moveTimer < moveDelay) return;
   moveTimer = 0;
 
   dir = nextDir;
@@ -433,16 +421,11 @@ function updatePlaying(delta) {
   }
   if (!ate) snake.pop();
 
-  // Boost particles
-  if (boosting && snake.length > 0) {
-    var tail = snake[snake.length - 1];
-    createParticles(tail.x * GS + GS / 2, tail.y * GS + GS / 2, 0x00F0FF, 3);
-  }
 
-  // Item scaling — if no items collected for 10s, add one more (no cap)
+  // Item scaling — if no items collected for 10s, add one more (capped)
   if (Date.now() - lastCollectTime >= 10000) {
     lastCollectTime = Date.now();
-    spawnItem();
+    if (items.length < MAX_ITEMS) spawnItem();
   }
 
   // Rock spawning — first rock at 20s, interval shrinks as player survives
@@ -458,7 +441,7 @@ function updatePlaying(delta) {
   }
 
   // Heartbeat
-  heartbeatTimer += delta + moveTimer;
+  heartbeatTimer += delta;
   var hbInterval = 500 - (budget / 100) * 350;
   if (heartbeatTimer > hbInterval) {
     heartbeatTimer = 0;
@@ -622,11 +605,6 @@ function drawHUD() {
   textPool[2].setText(t + 's');
   textPool[3].setText('x' + collected.length);
 
-  // Boost indicator
-  if (boosting) {
-    gfx.fillStyle(0x00F0FF, 0.3);
-    gfx.fillRect(0, 30, 800, 2);
-  }
 }
 
 // --- RECEIPT (Game Over) ---
@@ -838,12 +816,7 @@ function playGameOver() {
   });
 }
 
-function playBoost() {
-  // Rising whoosh — three quick ascending tones
-  playTone(300, 0.08, 0.1, 'sawtooth');
-  setTimeout(function () { playTone(500, 0.08, 0.12, 'sawtooth'); }, 40);
-  setTimeout(function () { playTone(800, 0.12, 0.1, 'sine'); }, 80);
-}
+
 
 // --- MENU MUSIC ---
 // Fast, driving arpeggiator to build urgency and attract players
