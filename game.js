@@ -439,19 +439,20 @@ function updatePlaying(delta) {
     createParticles(tail.x * GS + GS / 2, tail.y * GS + GS / 2, 0x00F0FF, 3);
   }
 
-  // Item scaling — if no items collected for 10s, add one more (max 10)
-  if (items.length < MAX_ITEMS && Date.now() - lastCollectTime >= 10000) {
+  // Item scaling — if no items collected for 10s, add one more (no cap)
+  if (Date.now() - lastCollectTime >= 10000) {
     lastCollectTime = Date.now();
     spawnItem();
   }
 
-  // Rock spawning — first rock at 20s, then every 15s (real time)
+  // Rock spawning — first rock at 20s, interval shrinks as player survives
   var elapsed = Date.now() - startTime;
+  var currentRockInterval = Math.max(5000, rockSpawnInterval - (elapsed / 1000) * 200);
   if (!firstRockSpawned && elapsed >= rockGraceTime) {
     firstRockSpawned = true;
     lastRockTime = Date.now();
     spawnRock();
-  } else if (firstRockSpawned && Date.now() - lastRockTime >= rockSpawnInterval) {
+  } else if (firstRockSpawned && Date.now() - lastRockTime >= currentRockInterval) {
     lastRockTime = Date.now();
     spawnRock();
   }
