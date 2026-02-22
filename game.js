@@ -378,7 +378,7 @@ function updatePlaying(delta) {
   // Play boost sound on activation
   if (boosting && !prevBoosting) playBoost();
 
-  moveDelay = 150 - calcIntensity() * 40;
+  moveDelay = 150 - calcIntensity() * 50;
   var spd = boosting ? moveDelay * 0.45 : moveDelay;
   moveTimer += delta;
   if (moveTimer < spd) return;
@@ -994,7 +994,7 @@ function scheduleMusicStep() {
   if (state !== 'playing') return;
   var intensity = calcIntensity();
   // Tempo: 200ms at start → 80ms when board is packed
-  var tempo = 200 - intensity * 120;
+  var tempo = 200 - intensity * 130;
 
   playMusicNote();
   musicStep++;
