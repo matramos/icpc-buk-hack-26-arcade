@@ -371,6 +371,7 @@ function updatePlaying(delta) {
   // Play boost sound on activation
   if (boosting && !prevBoosting) playBoost();
 
+  moveDelay = 150 - calcIntensity() * 40;
   var spd = boosting ? moveDelay * 0.45 : moveDelay;
   moveTimer += delta;
   if (moveTimer < spd) return;
@@ -419,7 +420,7 @@ function updatePlaying(delta) {
       lastCollectTime = Date.now(); // reset item timer
       if (budget > 100) { gameOver(); return; }
       spawnItem();
-      moveDelay = Math.max(80, moveDelay - 2);
+
       break;
     }
   }
@@ -973,11 +974,20 @@ function stopMusic() {
   }
 }
 
+function calcIntensity() {
+  var totalCells = COLS * ROWS;
+  var occupied = snake.length + rocks.length * 16 + items.length;
+  var crowding = Math.min(occupied / totalCells, 1); // 0 = empty board, 1 = full
+  var budgetRatio = Math.min(budget / 100, 1);
+  // 70% crowding + 30% budget
+  return Math.min(crowding * 0.7 + budgetRatio * 0.3, 1);
+}
+
 function scheduleMusicStep() {
   if (state !== 'playing') return;
-  var intensity = Math.min(budget / 100, 1);
-  // Tempo: 180ms at start → 90ms near $100
-  var tempo = 180 - intensity * 90;
+  var intensity = calcIntensity();
+  // Tempo: 200ms at start → 80ms when board is packed
+  var tempo = 200 - intensity * 120;
 
   playMusicNote();
   musicStep++;
@@ -988,7 +998,7 @@ function scheduleMusicStep() {
 function playMusicNote() {
   try {
     var ctx = getAudioCtx(); if (!ctx) return;
-    var intensity = Math.min(budget / 100, 1);
+    var intensity = calcIntensity();
     var step8 = musicStep % 8;
     var step3 = musicStep % 3;
 
