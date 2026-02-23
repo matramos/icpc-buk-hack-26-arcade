@@ -148,9 +148,6 @@ function create() {
   var touchStartX = 0, touchStartY = 0;
   this.input.on('pointerdown', function (p) {
     touchStartX = p.x; touchStartY = p.y;
-    // Tap to start/confirm
-    if (state === 'menu') startGame();
-    else if (state === 'gameover') { state = 'nameentry'; nameChars = [0, 0, 0]; namePos = 0; }
   });
   this.input.on('pointerup', function (p) {
     if (state !== 'playing') return;
@@ -213,6 +210,7 @@ function spawnItem() {
     }
     tries++;
   } while (!ok && tries < 100);
+  if (!ok) return; // no valid position found
   var v = VALUES[Math.floor(Math.random() * VALUES.length)];
   var label = scene.add.text(x * GS + GS / 2, y * GS + GS / 2, '$' + v, {
     fontFamily: FONT, fontSize: '13px', color: '#000000', fontStyle: 'bold'
@@ -224,7 +222,7 @@ function spawnRock() {
   var tries = 0, rx, ry, ok;
   do {
     rx = 1 + Math.floor(Math.random() * (COLS - 5));
-    ry = 2 + Math.floor(Math.random() * (ROWS - 5));
+    ry = 1 + Math.floor(Math.random() * (ROWS - 4));
     ok = true;
     // Check against entire snake body
     for (var si = 0; si < snake.length; si++) {
@@ -530,8 +528,13 @@ function drawPlaying(time) {
     gfx.fillRoundedRect(px - 4, py - 4, GS + 8, GS + 8, 6);
     gfx.fillStyle(c, 0.8);
     gfx.fillRoundedRect(px + 2, py + 2, GS - 4, GS - 4, 4);
-    // Update pooled label position
-    if (it.label) it.label.setPosition(px + GS / 2, py + GS / 2);
+    // Recreate label if destroyed (e.g. by clearTexts on state transition)
+    if (!it.label) {
+      it.label = scene.add.text(px + GS / 2, py + GS / 2, '$' + it.val, {
+        fontFamily: FONT, fontSize: '13px', color: '#000000', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(501);
+    }
+    it.label.setPosition(px + GS / 2, py + GS / 2);
   }
 
   // Snake body
