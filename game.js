@@ -52,6 +52,8 @@ var lastRockTime = 0;
 var rockSpawnInterval = 15000; // 15 seconds
 var rockGraceTime = 20000;    // first rock at 20 seconds
 var firstRockSpawned = false;
+var deathTimer = 0;
+var deathFlash = 0;
 
 
 // Text object pools
@@ -141,6 +143,28 @@ function create() {
     var k = KEYBOARD_TO_ARCADE[e.key] || e.key;
     keys[k] = false;
   });
+
+  // GX-006: Touch/swipe support
+  var touchStartX = 0, touchStartY = 0;
+  this.input.on('pointerdown', function (p) {
+    touchStartX = p.x; touchStartY = p.y;
+    // Tap to start/confirm
+    if (state === 'menu') startGame();
+    else if (state === 'gameover') { state = 'nameentry'; nameChars = [0, 0, 0]; namePos = 0; }
+  });
+  this.input.on('pointerup', function (p) {
+    if (state !== 'playing') return;
+    var dx = p.x - touchStartX, dy = p.y - touchStartY;
+    var minSwipe = 20;
+    if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 0 && dir !== 'left') nextDir = 'right';
+      else if (dx < 0 && dir !== 'right') nextDir = 'left';
+    } else {
+      if (dy > 0 && dir !== 'up') nextDir = 'down';
+      else if (dy < 0 && dir !== 'down') nextDir = 'up';
+    }
+  });
 }
 
 function startGame() {
@@ -160,6 +184,8 @@ function startGame() {
   rocks = [];
   lastRockTime = 0;
   firstRockSpawned = false;
+  deathTimer = 0;
+  deathFlash = 0;
   lastCollectTime = Date.now();
   spawnItem();
   spawnItem();
@@ -274,8 +300,24 @@ function update(time, delta) {
 
   if (state === 'menu') drawMenu();
   else if (state === 'playing') { updatePlaying(delta); drawPlaying(time); }
+  else if (state === 'dying') { updateDying(delta); drawPlaying(time); }
   else if (state === 'gameover') drawReceipt();
   else if (state === 'nameentry') drawNameEntry();
+}
+
+// --- DEATH ANIMATION ---
+function updateDying(delta) {
+  deathTimer -= delta;
+  deathFlash *= 0.92;
+  if (deathTimer <= 0) {
+    state = 'gameover';
+    var sc = calcScore();
+    if (sc > highScore) {
+      highScore = sc;
+      try { localStorage.setItem('tq_hs', highScore.toString()); } catch (e) { }
+    }
+    startGoMusic();
+  }
 }
 
 // --- MENU ---
@@ -426,7 +468,12 @@ function updatePlaying(delta) {
   // Item scaling — if no items collected for 10s, add one more (capped)
   if (Date.now() - lastCollectTime >= 10000) {
     lastCollectTime = Date.now();
-    if (items.length < MAX_ITEMS) spawnItem();
+    if (items.length < MAX_ITEMS) {
+      spawnItem();
+      // GX-004: Idle-spawn visual/audio cue
+      playTone(440, 0.08, 0.06, 'sine');
+      setTimeout(function () { playTone(550, 0.06, 0.05, 'sine'); }, 60);
+    }
   }
 
   // Rock spawning — first rock at 20s, interval shrinks as player survives
@@ -451,16 +498,22 @@ function updatePlaying(delta) {
 }
 
 function gameOver() {
-  state = 'gameover';
+  state = 'dying';
   stopMusic();
   timeAlive = (Date.now() - startTime) / 1000;
-  var sc = calcScore();
-  if (sc > highScore) {
-    highScore = sc;
-    try { localStorage.setItem('tq_hs', highScore.toString()); } catch (e) { }
+  deathTimer = 500; // 0.5s animation
+  deathFlash = 1;
+  // Explosion particles from snake head
+  if (snake.length > 0) {
+    var head = snake[0];
+    createParticles(head.x * GS + GS / 2, head.y * GS + GS / 2, 0xFF0055, 24);
+    createParticles(head.x * GS + GS / 2, head.y * GS + GS / 2, 0xFFFFFF, 12);
+    // Scatter body segments as particles
+    for (var si = 1; si < snake.length; si++) {
+      createParticles(snake[si].x * GS + GS / 2, snake[si].y * GS + GS / 2, 0x00F0FF, 4);
+    }
   }
   playGameOver();
-  startGoMusic();
 }
 
 function drawPlaying(time) {
@@ -583,19 +636,27 @@ function drawHUD() {
   gfx.strokeRect(20, 8, barW, 14);
 
   // HUD text objects: create once, update each frame
-  // indices in textPool: 0=budget, 1=of100, 2=time, 3=count
+  // indices in textPool: 0=budget, 1=of100, 2=time, 3=count, 4=highscore
   if (textPool.length === 0) {
     makeText(340, 5, '$0', 16, '#ffffff', 0);
     makeText(395, 5, '/$100', 16, '#888888', 0);
     makeText(730, 5, '0.0s', 16, '#00F0FF', 0);
     makeText(600, 5, 'x0', 16, '#BDFF00', 0);
+    makeText(780, 5, 'HI ' + highScore.toFixed(1), 10, '#FF0055', 1);
   }
   // Update values (guarded)
-  if (textPool.length >= 4) {
+  if (textPool.length >= 5) {
     textPool[0].setText('$' + budget);
     var t = ((Date.now() - startTime) / 1000).toFixed(1);
     textPool[2].setText(t + 's');
     textPool[3].setText('x' + collected.length);
+    textPool[4].setText('HI ' + highScore.toFixed(1));
+  }
+
+  // GX-002: Death flash overlay
+  if (deathFlash > 0.01) {
+    gfx.fillStyle(0xFFFFFF, deathFlash * 0.6);
+    gfx.fillRect(0, 0, 800, 600);
   }
 
 }
@@ -642,8 +703,13 @@ function drawReceipt() {
     yy += 30;
 
     var sc = calcScore();
+    var multiplier = budget <= 100 ? (budget / 100) : Math.max(0, (200 - budget) / 100);
     makeText(400, yy, 'TIME ' + timeAlive.toFixed(1) + 's', 13, '#ffffff'); yy += 22;
     makeText(400, yy, 'SCORE ' + sc.toFixed(1), 24, '#00F0FF'); yy += 30;
+
+    // GX-001: Score formula breakdown
+    makeText(400, yy, 'BUDGET EFF: ' + Math.round(multiplier * 100) + '%', 10, '#666666'); yy += 16;
+    makeText(400, yy, Math.round(multiplier * 100) + '% x ' + timeAlive.toFixed(1) + 's x 10', 10, '#555555'); yy += 20;
 
     if (sc >= highScore && sc > 0) {
       makeText(400, yy, 'NEW HIGH SCORE!', 16, '#FFFF00'); yy += 22;
