@@ -30,7 +30,6 @@ var highScore = 0;
 var particles = [];
 var heartbeatTimer = 0;
 var audioCtx = null;
-var targetItems = 2;
 var lastCollectTime = 0;
 var MAX_ITEMS = 10;
 
@@ -53,12 +52,10 @@ var lastRockTime = 0;
 var rockSpawnInterval = 15000; // 15 seconds
 var rockGraceTime = 20000;    // first rock at 20 seconds
 var firstRockSpawned = false;
-var glitchTimer = 0;
-var glitchActive = false;
+
 
 // Text object pools
 var textPool = [];
-var itemTexts = [];
 
 try {
   highScore = parseFloat(localStorage.getItem('tq_hs')) || 0;
@@ -87,10 +84,12 @@ function clearTexts() {
     textPool[i].destroy();
   }
   textPool = [];
-  for (var j = 0; j < itemTexts.length; j++) {
-    itemTexts[j].destroy();
+  // Destroy pooled item labels
+  if (items) {
+    for (var j = 0; j < items.length; j++) {
+      if (items[j].label) { items[j].label.destroy(); items[j].label = null; }
+    }
   }
-  itemTexts = [];
 }
 
 var config = {
@@ -161,9 +160,6 @@ function startGame() {
   rocks = [];
   lastRockTime = 0;
   firstRockSpawned = false;
-  glitchTimer = 0;
-  glitchActive = false;
-  targetItems = 2;
   lastCollectTime = Date.now();
   spawnItem();
   spawnItem();
@@ -174,7 +170,7 @@ function spawnItem() {
   var tries = 0, x, y, ok;
   do {
     x = 1 + Math.floor(Math.random() * (COLS - 2));
-    y = 2 + Math.floor(Math.random() * (ROWS - 3));
+    y = 1 + Math.floor(Math.random() * (ROWS - 2));
     ok = true;
     for (var i = 0; i < snake.length; i++) {
       if (snake[i].x === x && snake[i].y === y) { ok = false; break; }
@@ -192,13 +188,16 @@ function spawnItem() {
     tries++;
   } while (!ok && tries < 100);
   var v = VALUES[Math.floor(Math.random() * VALUES.length)];
-  items.push({ x: x, y: y, val: v, pulse: 0 });
+  var label = scene.add.text(x * GS + GS / 2, y * GS + GS / 2, '$' + v, {
+    fontFamily: FONT, fontSize: '13px', color: '#000000', fontStyle: 'bold'
+  }).setOrigin(0.5).setDepth(501);
+  items.push({ x: x, y: y, val: v, pulse: 0, label: label });
 }
 
 function spawnRock() {
   var tries = 0, rx, ry, ok;
   do {
-    rx = Math.floor(Math.random() * (COLS - 4));
+    rx = 1 + Math.floor(Math.random() * (COLS - 5));
     ry = 2 + Math.floor(Math.random() * (ROWS - 5));
     ok = true;
     // Check against entire snake body
@@ -221,6 +220,7 @@ function spawnRock() {
   // Remove items that overlap the new rock
   for (var i = items.length - 1; i >= 0; i--) {
     if (items[i].x >= rx && items[i].x < rx + 4 && items[i].y >= ry && items[i].y < ry + 4) {
+      if (items[i].label) items[i].label.destroy();
       items.splice(i, 1);
       spawnItem(); // replace it elsewhere
     }
@@ -410,6 +410,7 @@ function updatePlaying(delta) {
       collected.push({ val: items[j].val, color: COLORS[items[j].val] });
       playPickup();
       createParticles(head.x * GS + GS / 2, head.y * GS + GS / 2, COLORS[items[j].val], 12);
+      if (items[j].label) items[j].label.destroy();
       items.splice(j, 1);
       ate = true;
       lastCollectTime = Date.now(); // reset item timer
@@ -465,14 +466,7 @@ function gameOver() {
 function drawPlaying(time) {
   drawGrid();
 
-  // Sync item label texts
-  // Destroy old item texts
-  for (var ti = 0; ti < itemTexts.length; ti++) {
-    itemTexts[ti].destroy();
-  }
-  itemTexts = [];
-
-  // Items with glow + pulse
+  // Items with glow + pulse (labels pooled on items)
   for (var i = 0; i < items.length; i++) {
     var it = items[i];
     it.pulse = (it.pulse || 0) + 0.05;
@@ -483,11 +477,8 @@ function drawPlaying(time) {
     gfx.fillRoundedRect(px - 4, py - 4, GS + 8, GS + 8, 6);
     gfx.fillStyle(c, 0.8);
     gfx.fillRoundedRect(px + 2, py + 2, GS - 4, GS - 4, 4);
-    // Dollar label
-    var label = scene.add.text(px + GS / 2, py + GS / 2, '$' + it.val, {
-      fontFamily: FONT, fontSize: '13px', color: '#000000', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(501);
-    itemTexts.push(label);
+    // Update pooled label position
+    if (it.label) it.label.setPosition(px + GS / 2, py + GS / 2);
   }
 
   // Snake body
@@ -599,11 +590,13 @@ function drawHUD() {
     makeText(730, 5, '0.0s', 16, '#00F0FF', 0);
     makeText(600, 5, 'x0', 16, '#BDFF00', 0);
   }
-  // Update values
-  textPool[0].setText('$' + budget);
-  var t = ((Date.now() - startTime) / 1000).toFixed(1);
-  textPool[2].setText(t + 's');
-  textPool[3].setText('x' + collected.length);
+  // Update values (guarded)
+  if (textPool.length >= 4) {
+    textPool[0].setText('$' + budget);
+    var t = ((Date.now() - startTime) / 1000).toFixed(1);
+    textPool[2].setText(t + 's');
+    textPool[3].setText('x' + collected.length);
+  }
 
 }
 
@@ -752,7 +745,7 @@ function updateParticles() {
     var p = particles[i];
     p.x += p.vx; p.y += p.vy;
     p.life--;
-    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    if (p.life <= 0) { particles[i] = particles[particles.length - 1]; particles.pop(); continue; }
     var a = p.life / 30;
     gfx.fillStyle(p.color, a);
     gfx.fillCircle(p.x, p.y, p.size * (p.life / 30));
